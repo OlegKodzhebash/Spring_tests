@@ -1,63 +1,25 @@
-package org.example.travellguide.model;
+package org.example.travellguide.dto;
 
-import jakarta.persistence.*;
-
-import java.util.ArrayList;
 import java.util.List;
 
-@Entity
-@Table(name = "tour")
-public class Tour {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(name = "title")
+public class TourRequest {
     private String title;
-
-    @Column(name = "destination")
     private String destination;
-
-    @Column(name = "price")
     private Double price;
-
-    @Column(name = "duration_days")
     private Integer durationDays;
+    private Long guideId;
 
-    @ManyToOne
-    @JoinColumn(name = "guide_id")
-    private Guide guide;
-
-    @Column(name = "description")
     private String description;
-
-    @Column(name = "image_url")
     private String imageUrl;
-
-    @Column(name = "hotel_name")
     private String hotelName;
-
-    @Column(name = "food_type")
     private String foodType;
-
-    @Column(name = "rating")
     private Double rating;
-
-    @Column(name = "available_places")
     private Integer availablePlaces;
-
-    @Column(name = "price_per_day")
     private Double pricePerDay;
 
-    @OneToMany(mappedBy = "tour", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<TourImage> images = new ArrayList<>();
+    private List<String> imageUrls;
 
-    public Tour() {
-    }
-
-    public Long getId() {
-        return id;
+    public TourRequest() {
     }
 
     public String getTitle() {
@@ -92,12 +54,12 @@ public class Tour {
         this.durationDays = durationDays;
     }
 
-    public Guide getGuide() {
-        return guide;
+    public Long getGuideId() {
+        return guideId;
     }
 
-    public void setGuide(Guide guide) {
-        this.guide = guide;
+    public void setGuideId(Long guideId) {
+        this.guideId = guideId;
     }
 
     public String getDescription() {
@@ -156,17 +118,11 @@ public class Tour {
         this.pricePerDay = pricePerDay;
     }
 
-    public List<TourImage> getImages() {
-        return images;
+    public List<String> getImageUrls() {
+        return imageUrls;
     }
 
-    public void setImages(List<TourImage> images) {
-        this.images.clear();
-        if (images != null) {
-            for (TourImage image : images) {
-                image.setTour(this);
-                this.images.add(image);
-            }
-        }
+    public void setImageUrls(List<String> imageUrls) {
+        this.imageUrls = imageUrls;
     }
 }

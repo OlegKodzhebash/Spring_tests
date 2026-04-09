@@ -1,9 +1,13 @@
 package org.example.travellguide.controller;
 
+import org.example.travellguide.dto.PaymentRequest;
+import org.example.travellguide.exception.ResourceNotFoundException;
 import org.example.travellguide.model.Booking;
 import org.example.travellguide.model.Payment;
 import org.example.travellguide.repository.BookingRepository;
 import org.example.travellguide.repository.PaymentRepository;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -11,6 +15,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/payments")
+@CrossOrigin(origins = "http://localhost:5173")
 public class PaymentController {
 
     private final PaymentRepository paymentRepository;
@@ -22,18 +27,21 @@ public class PaymentController {
     }
 
     @GetMapping
-    public List<Payment> getAllPayments() {
-        return paymentRepository.findAll();
+    public ResponseEntity<List<Payment>> getAllPayments() {
+        return ResponseEntity.ok(paymentRepository.findAll());
     }
 
     @GetMapping("/{id}")
-    public Payment getPaymentById(@PathVariable Long id) {
-        return paymentRepository.findById(id).orElseThrow();
+    public ResponseEntity<Payment> getPaymentById(@PathVariable Long id) {
+        Payment payment = paymentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Payment with id " + id + " not found"));
+        return ResponseEntity.ok(payment);
     }
 
     @PostMapping
-    public Payment createPayment(@RequestBody PaymentRequest request) {
-        Booking booking = bookingRepository.findById(request.getBookingId()).orElseThrow();
+    public ResponseEntity<Payment> createPayment(@RequestBody PaymentRequest request) {
+        Booking booking = bookingRepository.findById(request.getBookingId())
+                .orElseThrow(() -> new ResourceNotFoundException("Booking with id " + request.getBookingId() + " not found"));
 
         Payment payment = new Payment();
         payment.setBooking(booking);
@@ -41,64 +49,33 @@ public class PaymentController {
         payment.setPaymentDate(LocalDate.parse(request.getPaymentDate()));
         payment.setMethod(request.getMethod());
 
-        return paymentRepository.save(payment);
+        Payment savedPayment = paymentRepository.save(payment);
+        return ResponseEntity.status(HttpStatus.CREATED).body(savedPayment);
     }
 
     @PutMapping("/{id}")
-    public Payment updatePayment(@PathVariable Long id, @RequestBody PaymentRequest request) {
-        Payment payment = paymentRepository.findById(id).orElseThrow();
-        Booking booking = bookingRepository.findById(request.getBookingId()).orElseThrow();
+    public ResponseEntity<Payment> updatePayment(@PathVariable Long id, @RequestBody PaymentRequest request) {
+        Payment payment = paymentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Payment with id " + id + " not found"));
+
+        Booking booking = bookingRepository.findById(request.getBookingId())
+                .orElseThrow(() -> new ResourceNotFoundException("Booking with id " + request.getBookingId() + " not found"));
 
         payment.setBooking(booking);
         payment.setAmount(request.getAmount());
         payment.setPaymentDate(LocalDate.parse(request.getPaymentDate()));
         payment.setMethod(request.getMethod());
 
-        return paymentRepository.save(payment);
+        Payment savedPayment = paymentRepository.save(payment);
+        return ResponseEntity.ok(savedPayment);
     }
 
     @DeleteMapping("/{id}")
-    public String deletePayment(@PathVariable Long id) {
-        paymentRepository.deleteById(id);
-        return "Payment deleted successfully";
-    }
+    public ResponseEntity<Void> deletePayment(@PathVariable Long id) {
+        Payment payment = paymentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Payment with id " + id + " not found"));
 
-    public static class PaymentRequest {
-        private Long bookingId;
-        private double amount;
-        private String paymentDate;
-        private String method;
-
-        public Long getBookingId() {
-            return bookingId;
-        }
-
-        public void setBookingId(Long bookingId) {
-            this.bookingId = bookingId;
-        }
-
-        public double getAmount() {
-            return amount;
-        }
-
-        public void setAmount(double amount) {
-            this.amount = amount;
-        }
-
-        public String getPaymentDate() {
-            return paymentDate;
-        }
-
-        public void setPaymentDate(String paymentDate) {
-            this.paymentDate = paymentDate;
-        }
-
-        public String getMethod() {
-            return method;
-        }
-
-        public void setMethod(String method) {
-            this.method = method;
-        }
+        paymentRepository.delete(payment);
+        return ResponseEntity.noContent().build();
     }
 }
