@@ -26,8 +26,8 @@ public class Review {
     private Tour tour;
 
     @ManyToOne
-    @JoinColumn(name = "customer_id")
-    private Customer customer;
+    @JoinColumn(name = "user_id")
+    private AppUser user;
 
     public Review() {
     }
@@ -68,11 +68,11 @@ public class Review {
         this.tour = tour;
     }
 
-    public Customer getCustomer() {
-        return customer;
+    public AppUser getUser() {
+        return user;
     }
 
-    public void setCustomer(Customer customer) {
-        this.customer = customer;
+    public void setUser(AppUser user) {
+        this.user = user;
     }
 }

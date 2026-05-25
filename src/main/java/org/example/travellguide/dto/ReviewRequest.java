@@ -4,7 +4,6 @@ public class ReviewRequest {
     private String text;
     private Integer rating;
     private Long tourId;
-    private Long customerId;
 
     public ReviewRequest() {
     }
@@ -31,13 +30,5 @@ public class ReviewRequest {
 
     public void setTourId(Long tourId) {
         this.tourId = tourId;
-    }
-
-    public Long getCustomerId() {
-        return customerId;
-    }
-
-    public void setCustomerId(Long customerId) {
-        this.customerId = customerId;
     }
 }

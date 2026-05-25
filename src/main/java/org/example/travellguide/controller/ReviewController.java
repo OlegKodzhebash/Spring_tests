@@ -1,12 +1,13 @@
 package org.example.travellguide.controller;
 
+import jakarta.servlet.http.HttpSession;
 import org.example.travellguide.dto.ReviewRequest;
 import org.example.travellguide.exception.BadRequestException;
 import org.example.travellguide.exception.ResourceNotFoundException;
-import org.example.travellguide.model.Customer;
+import org.example.travellguide.model.AppUser;
 import org.example.travellguide.model.Review;
 import org.example.travellguide.model.Tour;
-import org.example.travellguide.repository.CustomerRepository;
+import org.example.travellguide.repository.AppUserRepository;
 import org.example.travellguide.repository.ReviewRepository;
 import org.example.travellguide.repository.TourRepository;
 import org.springframework.http.HttpStatus;
@@ -18,19 +19,20 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/reviews")
-@CrossOrigin(origins = "http://localhost:5173")
 public class ReviewController {
+
+    private static final String SESSION_USER_ID = "USER_ID";
 
     private final ReviewRepository reviewRepository;
     private final TourRepository tourRepository;
-    private final CustomerRepository customerRepository;
+    private final AppUserRepository appUserRepository;
 
     public ReviewController(ReviewRepository reviewRepository,
                             TourRepository tourRepository,
-                            CustomerRepository customerRepository) {
+                            AppUserRepository appUserRepository) {
         this.reviewRepository = reviewRepository;
         this.tourRepository = tourRepository;
-        this.customerRepository = customerRepository;
+        this.appUserRepository = appUserRepository;
     }
 
     @GetMapping
@@ -38,37 +40,29 @@ public class ReviewController {
         return ResponseEntity.ok(reviewRepository.findAll());
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<Review> getReviewById(@PathVariable Long id) {
-        Review review = reviewRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Review with id " + id + " not found"));
-        return ResponseEntity.ok(review);
-    }
-
     @GetMapping("/tour/{tourId}")
     public ResponseEntity<List<Review>> getReviewsByTour(@PathVariable Long tourId) {
         if (!tourRepository.existsById(tourId)) {
             throw new ResourceNotFoundException("Tour with id " + tourId + " not found");
         }
+
         return ResponseEntity.ok(reviewRepository.findByTourId(tourId));
     }
 
     @PostMapping
-    public ResponseEntity<Review> createReview(@RequestBody ReviewRequest request) {
+    public ResponseEntity<Review> createReview(@RequestBody ReviewRequest request, HttpSession session) {
+        AppUser currentUser = getCurrentUser(session);
         validateRating(request.getRating());
 
         Tour tour = tourRepository.findById(request.getTourId())
                 .orElseThrow(() -> new ResourceNotFoundException("Tour with id " + request.getTourId() + " not found"));
-
-        Customer customer = customerRepository.findById(request.getCustomerId())
-                .orElseThrow(() -> new ResourceNotFoundException("Customer with id " + request.getCustomerId() + " not found"));
 
         Review review = new Review();
         review.setText(request.getText());
         review.setRating(request.getRating());
         review.setCreatedAt(LocalDate.now());
         review.setTour(tour);
-        review.setCustomer(customer);
+        review.setUser(currentUser);
 
         Review savedReview = reviewRepository.save(review);
 
@@ -78,24 +72,27 @@ public class ReviewController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Review> updateReview(@PathVariable Long id, @RequestBody ReviewRequest request) {
+    public ResponseEntity<Review> updateReview(@PathVariable Long id,
+                                               @RequestBody ReviewRequest request,
+                                               HttpSession session) {
+        AppUser currentUser = getCurrentUser(session);
         validateRating(request.getRating());
 
         Review review = reviewRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Review with id " + id + " not found"));
+
+        if (!review.getUser().getId().equals(currentUser.getId())) {
+            throw new BadRequestException("You can edit only your own review");
+        }
 
         Long oldTourId = review.getTour().getId();
 
         Tour tour = tourRepository.findById(request.getTourId())
                 .orElseThrow(() -> new ResourceNotFoundException("Tour with id " + request.getTourId() + " not found"));
 
-        Customer customer = customerRepository.findById(request.getCustomerId())
-                .orElseThrow(() -> new ResourceNotFoundException("Customer with id " + request.getCustomerId() + " not found"));
-
         review.setText(request.getText());
         review.setRating(request.getRating());
         review.setTour(tour);
-        review.setCustomer(customer);
 
         Review savedReview = reviewRepository.save(review);
 
@@ -109,9 +106,15 @@ public class ReviewController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteReview(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteReview(@PathVariable Long id, HttpSession session) {
+        AppUser currentUser = getCurrentUser(session);
+
         Review review = reviewRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Review with id " + id + " not found"));
+
+        if (!review.getUser().getId().equals(currentUser.getId())) {
+            throw new BadRequestException("You can delete only your own review");
+        }
 
         Long tourId = review.getTour().getId();
 
@@ -120,6 +123,19 @@ public class ReviewController {
         updateTourRating(tourId);
 
         return ResponseEntity.noContent().build();
+    }
+
+    private AppUser getCurrentUser(HttpSession session) {
+        Object userIdObj = session.getAttribute(SESSION_USER_ID);
+
+        if (userIdObj == null) {
+            throw new BadRequestException("Authentication required");
+        }
+
+        Long userId = ((Number) userIdObj).longValue();
+
+        return appUserRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 
     private void validateRating(Integer rating) {
